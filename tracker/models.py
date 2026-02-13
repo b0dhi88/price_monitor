@@ -4,23 +4,24 @@ class Product(models.Model):
     url = models.URLField(unique=True, verbose_name='URL товара')
     name = models.CharField(max_length=255, verbose_name='Название')
 
-    threshold_price_min = models.DecimalField(
-        max_digits=10, decimal_places=2,
-        null=True, blank=True,
-        verbose_name='Минимальная пороговая цена'
-    )
-    threshold_price_max = models.DecimalField(
-        max_digits=10, decimal_places=2,
-        null=True, blank=True,
-        verbose_name='Максимальная пороговая цена'
-    )
-
     current_price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         null=True,
         blank=True,
         verbose_name='Текущая цена'
+    )
+    threshold_price_min = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        null=True, blank=True,
+        verbose_name='Мин. порог',
+        help_text='Минимальная пороговая цена'
+    )
+    threshold_price_max = models.DecimalField(
+        max_digits=10, decimal_places=2,
+        null=True, blank=True,
+        verbose_name='Макс. порог',
+        help_text='Максимальная пороговая цена'
     )
 
     is_active = models.BooleanField(default=True, verbose_name='Активен', db_index=True)
