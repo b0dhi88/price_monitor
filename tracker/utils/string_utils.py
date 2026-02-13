@@ -1,3 +1,6 @@
+import re
+
+
 class StringUtils:
     
     @staticmethod
@@ -6,3 +9,9 @@ class StringUtils:
             return None
         cleaned = text.strip()
         return cleaned if cleaned else None
+    
+    @staticmethod
+    def clean_price(price_text: str) -> str:
+        if not price_text:
+            return ''
+        return re.sub(r'[^\d.]', '', price_text.replace(',', '.'))
