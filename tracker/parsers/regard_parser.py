@@ -16,11 +16,104 @@ class RegardParser(BaseParser):
         self.playwright = None
         self._init_lock = asyncio.Lock()
 
+    async def parse(self, url: str) -> ParseResult:
+        await self._init_browser()
+        
+        context = None
+        page = None
+        try:
+            context = await self._create_context()
+            page = await context.new_page()
+
+            page.set_default_timeout(self.timeout * 1000)
+            await asyncio.sleep(random.uniform(1, 3))
+
+            response = await page.goto(url, wait_until='networkidle')
+            if not response or not response.ok:
+                return ParseResult(
+                    price=0,
+                    product_name='',
+                    url=url,
+                    error=f"HTTP Error: {response.status if response else 'No response'}"
+                )
+
+            await asyncio.sleep(random.uniform(0.5, 1.5))
+            
+            product_name = await self.get_product_name(page)
+            product_price = await self.get_product_price(page)
+            html = await page.content()
+
+            return ParseResult(
+                price=product_price,
+                product_name=product_name,
+                url=url,
+                raw_response=html[:1000]
+            )
+        except Exception as e:
+            return ParseResult(
+                price=0,
+                product_name='',
+                url=url,
+                error=str(e)
+            )
+        finally:
+            if page:
+                await page.close()
+            if context:
+                await context.close()
+
+    async def get_product_name(self, page) -> str:
+        try:
+            name = await page.locator('h1[class^="Product_title__"]').text_content()
+            if name := StringUtils.clean(name):
+                return name
+            
+            title = await page.title()
+            separator = ':'
+            if title and separator in title:
+                name = title.split(separator)[0]
+                if name := StringUtils.clean(name):
+                    return name
+            
+            url = page.url
+            if url:
+                return self._get_name_from_url_fallback(url)
+            
+            return ''
+            
+        except Exception as e:
+            print(f"Error getting product name: {e}")
+            return ''
+
+    async def get_product_price(self, page) -> float:
+        try:
+            price_element = page.locator('span[class^="Price_price__"]').first
+            price_text = await price_element.text_content()
+            if not price_text:
+                return 0
+            
+            cleaned = StringUtils.clean_price(price_text)
+            return float(cleaned) if cleaned else 0
+        except Exception as e:
+            print(f"Error getting product price: {e}")
+            return 0
+
+    async def close(self):
+        if self.browser:
+            await self.browser.close()
+            self.browser = None
+        if self.playwright:
+            await self.playwright.stop()
+            self.playwright = None
+
     async def __aenter__(self):
         await self._init_browser()
         return self
     
-    async def __aexit__(self):
+    async def __aexit__(self, *args):
+        await self.close()
+
+    async def __aclose__(self):
         await self.close()
 
     async def _init_browser(self):
@@ -73,88 +166,8 @@ class RegardParser(BaseParser):
         """)
         return context
 
-    async def get_product_name(self, page) -> str:
-        try:
-            name = await page.locator('h1[class^="Product_title__"]').text_content()
-            if name := StringUtils.clean(name):
-                return name
-            
-            title = await page.title()
-            separator = ':'
-            if title and separator in title:
-                name = title.split(separator)[0]
-                if name := StringUtils.clean(name):
-                    return name
-            
-            return ''
-            
-        except Exception as e:
-            print(f"Error getting product name: {e}")
-            return ''
-        
-    async def get_product_price(self, page) -> float:
-        try:
-            price_element = page.locator('span[class^="Price_price__"]').first
-            price_text = await price_element.text_content()
-            if not price_text:
-                return 0
-            
-            cleaned = StringUtils.clean_price(price_text)
-            return float(cleaned) if cleaned else 0
-        except Exception as e:
-            print(f"Error getting product price: {e}")
-            return 0
-    
-    async def parse(self, url: str) -> ParseResult:
-        await self._init_browser()
-        
-        context = None
-        page = None
-        try:
-            context = await self._create_context()
-            page = await context.new_page()
-
-            page.set_default_timeout(self.timeout * 1000)
-            await asyncio.sleep(random.uniform(1, 3))
-
-            response = await page.goto(url, wait_until='networkidle')
-            if not response or not response.ok:
-                return ParseResult(
-                    price=0,
-                    product_name='',
-                    url=url,
-                    error=f"HTTP Error: {response.status if response else 'No response'}"
-                )
-
-            await asyncio.sleep(random.uniform(0.5, 1.5))
-            
-            product_name = await self.get_product_name(page)
-            product_price = await self.get_product_price(page)
-            html = await page.content()
-
-            return ParseResult(
-                price=product_price,
-                product_name=product_name,
-                url=url,
-                raw_response=html[:1000]
-            )
-        except Exception as e:
-            return ParseResult(
-                price=0,
-                product_name='',
-                url=url,
-                error=str(e)
-            )
-        finally:
-            if page:
-                await page.close()
-            if context:
-                await context.close()
-    
-    async def close(self):
-        if self.browser:
-            await self.browser.close()
-            self.browser = None
-        if self.playwright:
-            await self.playwright.stop()
-            self.playwright = None
+    @staticmethod
+    def _get_name_from_url_fallback(url: str) -> str:
+        last_part = url.rstrip('/').split('/')[-1]
+        name = last_part.replace('-', ' ').replace('_', ' ').title()
+        return name[:255]

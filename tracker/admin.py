@@ -6,34 +6,41 @@ from tracker.models import PriceHistory, Product
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
-        'name',
+        'name_display',
         'current_price',
         'threshold_price_min',
         'threshold_price_max',
         'is_active',
-        'updated_at'
+        'updated_at',
+        'status'
     )
     list_filter = ('is_active', 'created_at')
     search_fields = ('name', 'url')
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = ('name', 'created_at', 'updated_at')
     list_editable = (
         'is_active',
         'threshold_price_min',
         'threshold_price_max'
     )
 
-    fieldsets = (
-        ('Основная информация', {
-            'fields': ('url', 'name', 'is_active')
-        }),
-        ('Цены', {
-            'fields': ('current_price', 'threshold_price_min', 'threshold_price_max')
-        }),
-        ('Даты', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse')
-        })
-    )
+    def name_display(self, obj):
+        if obj.name:
+           return obj.name
+        return f'ID:{obj.id} (ожидает парсинга)'
+    name_display.short_description = 'Название'
+
+    def status(self, obj):
+        if not obj.name:
+            return 'Ожидает первого парсинга'
+        if obj.current_price:
+            if obj.threshold_price_min and obj.current_price <= obj.threshold_price_min:
+                return 'Цена ниже минимального порога'
+            if obj.threshold_price_max and obj.current_price >= obj.threshold_price_max:
+                return 'Цена выше максимаьного порога'
+        return 'Отслеживается'
+    status.short_description = 'Статус'
+        
+        
 
 @admin.register(PriceHistory)
 class PriceHistoryAdmin(admin.ModelAdmin):

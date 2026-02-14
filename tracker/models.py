@@ -2,13 +2,12 @@ from django.db import models
 
 class Product(models.Model):
     url = models.URLField(unique=True, verbose_name='URL товара')
-    name = models.CharField(max_length=255, verbose_name='Название')
+    name = models.CharField(max_length=255, blank=True, verbose_name='Название')
 
     current_price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        null=True,
-        blank=True,
+        null=True, blank=True,
         verbose_name='Текущая цена'
     )
     threshold_price_min = models.DecimalField(
@@ -34,7 +33,7 @@ class Product(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return self.name
+        return self.name or f'Новый товар (ID: {self.id})'
     
     def is_threshold_reached(self):
         """Достигла ли цена границ диапазона"""
