@@ -13,23 +13,36 @@ class RegardParser(BaseParser):
         super().__init__(timeout)
         self.headless = headless
         self.browser: Optional[Browser] = None
+        self.playwright = None
+        self._init_lock = asyncio.Lock()
+
+    async def __aenter__(self):
+        await self._init_browser()
+        return self
+    
+    async def __aexit__(self):
+        await self.close()
 
     async def _init_browser(self):
-        playwright = await async_playwright().start()
-        self.browser = await playwright.chromium.launch(
-            headless=self.headless,
-            args=[
-                '--disable-blink-features=AutomationControlled',
-                '--disable-web-security',
-                '--disable-features=IsolateOrigins,site-per-process',
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--disable-gpu',
-                '--window-size=1920,1080',
-            ]
-        )
+        async with self._init_lock:
+            if self.browser:
+                return
+            
+            self.playwright = await async_playwright().start()
+            self.browser = await self.playwright.chromium.launch(
+                headless=self.headless,
+                args=[
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-web-security',
+                    '--disable-features=IsolateOrigins,site-per-process',
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--disable-gpu',
+                    '--window-size=1920,1080',
+                ]
+            )
 
     async def _create_context(self):
         context = await self.browser.new_context(
@@ -93,12 +106,10 @@ class RegardParser(BaseParser):
             return 0
     
     async def parse(self, url: str) -> ParseResult:
-        if not self.browser:
-            await self._init_browser()
+        await self._init_browser()
         
         context = None
         page = None
-
         try:
             context = await self._create_context()
             page = await context.new_page()
@@ -143,3 +154,7 @@ class RegardParser(BaseParser):
     async def close(self):
         if self.browser:
             await self.browser.close()
+            self.browser = None
+        if self.playwright:
+            await self.playwright.stop()
+            self.playwright = None
