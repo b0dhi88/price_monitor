@@ -4,11 +4,11 @@ class Product(models.Model):
     url = models.URLField(unique=True, verbose_name='URL товара')
     name = models.CharField(max_length=255, blank=True, verbose_name='Название')
 
-    current_price = models.DecimalField(
+    last_price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         null=True, blank=True,
-        verbose_name='Текущая цена'
+        verbose_name='Последняя цена'
     )
     threshold_price_min = models.DecimalField(
         max_digits=10, decimal_places=2,
@@ -37,11 +37,11 @@ class Product(models.Model):
     
     def is_threshold_reached(self):
         """Достигла ли цена границ диапазона"""
-        if self.current_price is None:
+        if self.last_price is None:
             return False
-        if self.threshold_price_min and self.current_price <= self.threshold_price_min:
+        if self.threshold_price_min and self.last_price <= self.threshold_price_min:
             return True
-        if self.threshold_price_max and self.current_price >= self.threshold_price_max:
+        if self.threshold_price_max and self.last_price >= self.threshold_price_max:
             return True
 
 class PriceHistory(models.Model):

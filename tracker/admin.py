@@ -7,7 +7,7 @@ from tracker.models import PriceHistory, Product
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
         'name_display',
-        'current_price',
+        'last_price',
         'threshold_price_min',
         'threshold_price_max',
         'is_active',
@@ -32,11 +32,11 @@ class ProductAdmin(admin.ModelAdmin):
     def status(self, obj):
         if not obj.name:
             return 'Ожидает первого парсинга'
-        if obj.current_price:
-            if obj.threshold_price_min and obj.current_price <= obj.threshold_price_min:
+        if obj.last_price:
+            if obj.threshold_price_min and obj.last_price <= obj.threshold_price_min:
                 return 'Цена ниже минимального порога'
-            if obj.threshold_price_max and obj.current_price >= obj.threshold_price_max:
-                return 'Цена выше максимаьного порога'
+            if obj.threshold_price_max and obj.last_price >= obj.threshold_price_max:
+                return 'Цена выше максимального порога'
         return 'Отслеживается'
     status.short_description = 'Статус'
         
