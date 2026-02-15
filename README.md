@@ -6,9 +6,10 @@
 
 - Python 3.11 / Django 5.x
 - Playwright (парсинг)
-- Celery + Redis (фоновые задачи)
-- PostgreSQL (опционально)
-- Docker (опционально)
+- Celery (фоновые задачи)
+- Redis (планируется)
+- PostgreSQL (планируется)
+- Docker (планируется)
 
 ## Возможности
 
