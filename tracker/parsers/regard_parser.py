@@ -9,6 +9,7 @@ from tracker.utils.string_utils import StringUtils
 class RegardParser(BaseParser):
     """Парсер для regard.ru с защитой бот детекта"""
 
+    # TODO: увеличить таймаут и добавить retry логику для защиты от timeout
     def __init__(self, headless: bool = True, timeout = 30):
         super().__init__(timeout)
         self.headless = headless

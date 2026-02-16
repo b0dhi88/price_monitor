@@ -1,4 +1,6 @@
+from celery import current_app
 from django.contrib import admin
+from django.db import transaction
 
 from tracker.models import PriceHistory, Product
 
@@ -39,6 +41,13 @@ class ProductAdmin(admin.ModelAdmin):
                 return 'Цена выше максимального порога'
         return 'Отслеживается'
     status.short_description = 'Статус'
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if not change or 'url' in form.changed_data:
+            transaction.on_commit(lambda: current_app.send_task(
+                'tracker.tasks.check_product_price', args=[obj.id]
+            ))
         
         
 
