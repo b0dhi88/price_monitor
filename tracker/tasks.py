@@ -30,23 +30,20 @@ def check_product_price(product_id):
     finally:
         loop.close()
     
-    if result.error:
-        logger.error(f'Ошибка парсинга {product.url}: {result.error}')
+    if not _process_parsing_result(product, result):
         return f'Ошибка парсинга {product_id}: {result.error}'
-    
-    _save_result(product, result)
     
     return f'{product.name}: {result.price}'
 
 
-def _handle_parsing_error(product, error_message: str):
-    """Логирует ошибку парсинга."""
-    logger.error(f'Ошибка парсинга {product.url}: {error_message}')
-
-
-def _handle_parsing_success(product, result):
-    """Обрабатывает успешный парсинг."""
+def _process_parsing_result(product, result):
+    if result.error:
+        logger.error(f'Ошибка парсинга {product.url}: {result.error}')
+        return False
+    
     _save_result(product, result)
+    return True
+
 
 @shared_task
 def check_all_products():
@@ -61,13 +58,7 @@ def check_all_products():
     finally:
         loop.close()
     
-    success_count = 0
-    for product, result in results:
-        if result.error:
-            _handle_parsing_error(product, result.error)
-        else:
-            _handle_parsing_success(product, result)
-            success_count += 1
+    success_count = sum(1 for p, r in results if _process_parsing_result(p, r))
     
     return f'Проверено {success_count}/{len(products)} товаров'
 
