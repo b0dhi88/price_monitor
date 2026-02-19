@@ -1,12 +1,25 @@
 from celery import current_app
+from django import forms
 from django.contrib import admin
+from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from tracker.models import PriceHistory, Product
+from tracker.parsers.registry import validate_url_has_parser
 
-# Register your models here.
+
+class ProductForm(forms.ModelForm):
+    def clean_url(self):
+        url = self.cleaned_data['url']
+        is_valid, error_message = validate_url_has_parser(url)
+        if not is_valid:
+            raise ValidationError(error_message)
+        return url
+
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
+    form = ProductForm
     list_display = (
         'name_display',
         'last_price',

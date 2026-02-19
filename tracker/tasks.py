@@ -1,16 +1,23 @@
 import asyncio
+import logging
 import random
 from tracker.models import PriceHistory, Product
 from tracker.parsers.regard_parser import RegardParser
 from celery import shared_task
 from django.db import transaction
 
+logger = logging.getLogger(__name__)
+
+
 @shared_task
 def check_product_price(product_id):
     try:
-        product = Product.objects.get(id=product_id, is_active=True)
+        product = Product.objects.get(id=product_id)
     except Product.DoesNotExist:
-        return f'Товар {product_id} не найден или неактивен'
+        return f'Товар {product_id} не найден'
+    
+    if not product.is_active:
+        return f'Товар {product_id} неактивен'
     
     async def _parse(product):
         async with RegardParser(headless=True) as parser:
@@ -24,11 +31,22 @@ def check_product_price(product_id):
         loop.close()
     
     if result.error:
+        logger.error(f'Ошибка парсинга {product.url}: {result.error}')
         return f'Ошибка парсинга {product_id}: {result.error}'
     
     _save_result(product, result)
     
     return f'{product.name}: {result.price}'
+
+
+def _handle_parsing_error(product, error_message: str):
+    """Логирует ошибку парсинга."""
+    logger.error(f'Ошибка парсинга {product.url}: {error_message}')
+
+
+def _handle_parsing_success(product, result):
+    """Обрабатывает успешный парсинг."""
+    _save_result(product, result)
 
 @shared_task
 def check_all_products():
@@ -43,13 +61,16 @@ def check_all_products():
     finally:
         loop.close()
     
-    success_count = sum(1 for _, r in results if not r.error)
-
+    success_count = 0
     for product, result in results:
-        if not result.error:
-            _save_result(product, result)
+        if result.error:
+            _handle_parsing_error(product, result.error)
+        else:
+            _handle_parsing_success(product, result)
+            success_count += 1
     
     return f'Проверено {success_count}/{len(products)} товаров'
+
 
 async def _parse_all_safe(products):
     results = []
