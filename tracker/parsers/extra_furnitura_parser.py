@@ -49,3 +49,9 @@ class ExtraFurnituraParser(BaseParser):
             return 0
         price_text = StringUtils.clean_price(price_el.get_text(strip=True))
         return float(price_text) if price_text else 0
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        pass

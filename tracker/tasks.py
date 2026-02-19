@@ -2,11 +2,20 @@ import asyncio
 import logging
 import random
 from tracker.models import PriceHistory, Product
+from tracker.parsers.registry import get_parser_for_url
 from tracker.parsers.regard_parser import RegardParser
 from celery import shared_task
 from django.db import transaction
 
 logger = logging.getLogger(__name__)
+
+
+def _get_parser_for_product(product):
+    parser_name = get_parser_for_url(product.url)
+    if parser_name == 'ExtraFurnituraParser':
+        from tracker.parsers.extra_furnitura_parser import ExtraFurnituraParser
+        return ExtraFurnituraParser()
+    return RegardParser(headless=True)
 
 
 @shared_task
@@ -20,7 +29,8 @@ def check_product_price(product_id):
         return f'Товар {product_id} неактивен'
     
     async def _parse(product):
-        async with RegardParser(headless=True) as parser:
+        parser = _get_parser_for_product(product)
+        async with parser:
             return await parser.parse(product.url)
     
     loop = asyncio.new_event_loop()
@@ -66,7 +76,8 @@ def check_all_products():
 async def _parse_all_safe(products):
     results = []
     for product in products:
-        async with RegardParser(headless=True) as parser:
+        parser = _get_parser_for_product(product)
+        async with parser:
             result = await parser.parse(product.url)
             results.append((product, result))
             await asyncio.sleep(random.uniform(2, 5))
