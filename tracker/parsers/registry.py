@@ -3,6 +3,7 @@ from typing import Optional
 
 PARSER_REGISTRY = {
     'regard.ru': 'RegardParser',
+    'extra-furnitura.ru': 'ExtraFurnituraParser',
 }
 
 

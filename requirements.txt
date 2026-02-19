@@ -3,3 +3,5 @@ playwright
 celery
 redis
 python-dotenv
+httpx
+beautifulsoup4
